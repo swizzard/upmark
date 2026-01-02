@@ -49,7 +49,7 @@ class Raw(Entity):
         return isinstance(other, Raw) and super().__eq__(other)
 
     def __repr__(self):
-        return f'Raw(start={self.start}, end={self.end}, text="{repr(self.text[self.start : self.start + 10])}...")'
+        return f'Raw(start={self.start}, end={self.end}, text="{repr(self.text[self.start : min(self.end, self.start + 10)])}...")'
 
 
 class Content:
@@ -173,3 +173,56 @@ class HeaderEntity(WrappingBlockEntity):
         if self.is_bof:
             return s[1:]
         return s
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, HeaderEntity)
+            and other.is_bof == self.is_bof
+            and other.start == self.start
+            and other.end == self.end
+            and other.level == self.level
+            and self.text == other.text
+            and self.content == other.content
+        )
+
+
+class ListItemEntity(WrappingBlockEntity):
+    tag = "li"
+
+
+class ListEntity(Entity):
+    content: [ListItemEntity | Self]
+    tag: str
+
+    def __init__(self, text, start, end, content: [ListItemEntity | Self]):
+        super().__init__(text, start, end)
+        self.content = content
+
+    def push_item(self, item: ListItemEntity | Self):
+        self.content.append(item)
+
+    def trim_to_content(self):
+        last_item = self.content[-1]
+        if isinstance(last_item, ListEntity):
+            last_item.trim_to_content()
+        self.end = last_item.end
+
+    def to_string(self):
+        return f"\n<{self.tag}>{''.join(entity.to_string() for entity in self.content)}</{self.tag}>\n"
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, ListEntity)
+            and other.start == self.start
+            and other.end == self.end
+            and other.tag == self.tag
+            and other.content == self.content
+        )
+
+
+class OrderedListEntity(ListEntity):
+    tag = "ol"
+
+
+class UnorderedListEntity(ListEntity):
+    tag = "ul"

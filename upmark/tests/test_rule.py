@@ -1,6 +1,6 @@
 from unittest import TestCase
-from upmark.entity import Content, Raw
-from upmark.rule import HashHeaderRule, EqH1Rule, EqH2Rule
+from upmark.entity import Content, ListItemEntity, OrderedListEntity, Raw
+from upmark.rule import HashHeaderRule, EqH1Rule, EqH2Rule, OlRule
 
 
 class TestHashHeaderRule(TestCase):
@@ -65,3 +65,45 @@ class TestEqHRule(TestCase):
         self.assertEqual(expected_is_bof, actual_entity.is_bof)
         self.assertEqual(expected_start, actual_entity.start)
         self.assertEqual(expected_end, actual_entity.end)
+
+
+class TestOlRule(TestCase):
+    maxDiff = None
+
+    def test_parse_entity_no_indent(self):
+        test_text = "\n\n1. one\n2. two\n"
+        expected_li_1 = ListItemEntity(test_text, 1, 8, Content([Raw(test_text, 5, 8)]))
+        expected_li_2 = ListItemEntity(
+            test_text, 8, 15, Content([Raw(test_text, 12, 15)])
+        )
+        expected_ol = OrderedListEntity(
+            test_text, 0, 15, [expected_li_1, expected_li_2]
+        )
+        actual_match = OlRule.pattern.match(test_text)
+        actual_entity = OlRule.parse_entity(test_text, actual_match)
+        self.assertEqual(expected_ol, actual_entity)
+
+    def test_parse_entity_one_indent(self):
+        test_text = "\n\n1. one\n2. two\n\t1. in one\n3. three\n"
+        expected_li_1 = ListItemEntity(test_text, 1, 8, Content([Raw(test_text, 5, 8)]))
+        expected_li_2 = ListItemEntity(
+            test_text, 8, 15, Content([Raw(test_text, 12, 15)])
+        )
+        expected_li_3 = ListItemEntity(
+            test_text, 26, 35, Content([Raw(test_text, 30, 35)])
+        )
+        expected_indented_li_1 = ListItemEntity(
+            test_text, 15, 26, Content([Raw(test_text, 20, 26)])
+        )
+        expected_indented_ol = OrderedListEntity(
+            test_text, 15, 26, [expected_indented_li_1]
+        )
+        expected_ol = OrderedListEntity(
+            test_text,
+            0,
+            35,
+            [expected_li_1, expected_li_2, expected_indented_ol, expected_li_3],
+        )
+        actual_match = OlRule.pattern.match(test_text)
+        actual_entity = OlRule.parse_entity(test_text, actual_match)
+        self.assertEqual(expected_ol, actual_entity)

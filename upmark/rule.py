@@ -1,5 +1,13 @@
 import re
-from .entity import Content, Entity, HeaderEntity, Raw
+from .entity import (
+    Content,
+    Entity,
+    HeaderEntity,
+    ListItemEntity,
+    OrderedListEntity,
+    Raw,
+    UnorderedListEntity,
+)
 
 
 class Rule:
@@ -66,6 +74,46 @@ class EqH2Rule(Rule):
             level=2,
             is_bof=(not m.group("pre")),
         )
+
+
+class OlRule(Rule):
+    ITEM_PAT = r"(\n(?P<indent>(\t| {2,}))?\d+\.[\t ]+(?P<text>.+))"
+    item_pattern = re.compile(ITEM_PAT)
+    pattern = re.compile("\n" + ITEM_PAT + "+\n")
+
+    @classmethod
+    def parse_entity(cls, text: str, m: re.Match) -> Entity:
+        ol = OrderedListEntity(text, m.start(), m.end(), [])
+        matches = cls.item_pattern.finditer(text, m.start(), m.end())
+        curr_indent = 0
+        lists = [ol]
+        for match in matches:
+            ind = parse_indent(match.group("indent"))
+            li = ListItemEntity(
+                text,
+                match.start(),
+                match.end(),
+                Content.raw_remainder(text, match.start("text"), match.end("text")),
+            )
+            if ind > curr_indent:
+                inner = OrderedListEntity(text, match.start(), m.end(), [li])
+                lists[curr_indent].push_item(inner)
+                lists.append(inner)
+                curr_indent += 1
+            elif ind < curr_indent:
+                lists[ind].push_item(li)
+                curr_indent = ind
+            else:
+                lists[curr_indent].push_item(li)
+        for lst in lists:
+            lst.trim_to_content()
+        return ol
+
+
+def parse_indent(indent: str | None) -> int:
+    if indent is None:
+        return 0
+    return len(indent.replace("\t", "  ")) // 2
 
 
 # def raw_to_unannotated(raw: Raw) -> Content:
