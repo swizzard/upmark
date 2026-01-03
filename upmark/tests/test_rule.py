@@ -1,6 +1,12 @@
 from unittest import TestCase
-from upmark.entity import Content, ListItemEntity, OrderedListEntity, Raw
-from upmark.rule import HashHeaderRule, EqH1Rule, EqH2Rule, OlRule
+from upmark.entity import (
+    Content,
+    ListItemEntity,
+    OrderedListEntity,
+    Raw,
+    UnorderedListEntity,
+)
+from upmark.rule import HashHeaderRule, EqH1Rule, EqH2Rule, OlRule, UlRule
 
 
 class TestHashHeaderRule(TestCase):
@@ -107,3 +113,45 @@ class TestOlRule(TestCase):
         actual_match = OlRule.pattern.match(test_text)
         actual_entity = OlRule.parse_entity(test_text, actual_match)
         self.assertEqual(expected_ol, actual_entity)
+
+
+class TestUlRule(TestCase):
+    maxDiff = None
+
+    def test_parse_entity_no_indent(self):
+        test_text = "\n\n* one\n* two\n"
+        expected_li_1 = ListItemEntity(test_text, 1, 7, Content([Raw(test_text, 4, 7)]))
+        expected_li_2 = ListItemEntity(
+            test_text, 7, 13, Content([Raw(test_text, 10, 13)])
+        )
+        expected_ul = UnorderedListEntity(
+            test_text, 0, 13, [expected_li_1, expected_li_2]
+        )
+        actual_match = UlRule.pattern.match(test_text)
+        actual_entity = UlRule.parse_entity(test_text, actual_match)
+        self.assertEqual(expected_ul.content, actual_entity.content)
+
+    def test_parse_entity_one_indent(self):
+        test_text = "\n\n- one\n- two\n\t- in one\n- three\n"
+        expected_li_1 = ListItemEntity(test_text, 1, 7, Content([Raw(test_text, 4, 7)]))
+        expected_li_2 = ListItemEntity(
+            test_text, 7, 13, Content([Raw(test_text, 10, 13)])
+        )
+        expected_li_3 = ListItemEntity(
+            test_text, 23, 31, Content([Raw(test_text, 26, 31)])
+        )
+        expected_indented_li_1 = ListItemEntity(
+            test_text, 13, 23, Content([Raw(test_text, 17, 23)])
+        )
+        expected_indented_ul = UnorderedListEntity(
+            test_text, 13, 23, [expected_indented_li_1]
+        )
+        expected_ul = UnorderedListEntity(
+            test_text,
+            0,
+            31,
+            [expected_li_1, expected_li_2, expected_indented_ul, expected_li_3],
+        )
+        actual_match = UlRule.pattern.match(test_text)
+        actual_entity = UlRule.parse_entity(test_text, actual_match)
+        self.assertEqual(expected_ul, actual_entity)

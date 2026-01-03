@@ -76,17 +76,17 @@ class EqH2Rule(Rule):
         )
 
 
-class OlRule(Rule):
-    ITEM_PAT = r"(\n(?P<indent>(\t| {2,}))?\d+\.[\t ]+(?P<text>.+))"
-    item_pattern = re.compile(ITEM_PAT)
-    pattern = re.compile("\n" + ITEM_PAT + "+\n")
+class ListLikeRule(Rule):
+    list_entity: Entity
+    item_pattern: re.Pattern
+    pattern: re.Pattern
 
     @classmethod
     def parse_entity(cls, text: str, m: re.Match) -> Entity:
-        ol = OrderedListEntity(text, m.start(), m.end(), [])
+        list_el = cls.list_entity(text, m.start(), m.end(), [])
         matches = cls.item_pattern.finditer(text, m.start(), m.end())
         curr_indent = 0
-        lists = [ol]
+        lists = [list_el]
         for match in matches:
             ind = parse_indent(match.group("indent"))
             li = ListItemEntity(
@@ -96,7 +96,7 @@ class OlRule(Rule):
                 Content.raw_remainder(text, match.start("text"), match.end("text")),
             )
             if ind > curr_indent:
-                inner = OrderedListEntity(text, match.start(), m.end(), [li])
+                inner = cls.list_entity(text, match.start(), m.end(), [li])
                 lists[curr_indent].push_item(inner)
                 lists.append(inner)
                 curr_indent += 1
@@ -107,7 +107,21 @@ class OlRule(Rule):
                 lists[curr_indent].push_item(li)
         for lst in lists:
             lst.trim_to_content()
-        return ol
+        return list_el
+
+
+class OlRule(ListLikeRule):
+    list_entity = OrderedListEntity
+    ITEM_PAT = r"(\n(?P<indent>(\t| {2,}))?\d+\.[\t ]+(?P<text>.+))"
+    item_pattern = re.compile(ITEM_PAT)
+    pattern = re.compile("\n" + ITEM_PAT + "+\n")
+
+
+class UlRule(ListLikeRule):
+    list_entity = UnorderedListEntity
+    ITEM_PAT = r"(\n(?P<indent>(\t| {2,}))?[-*+][\t ]+(?P<text>.+))"
+    item_pattern = re.compile(ITEM_PAT)
+    pattern = re.compile("\n" + ITEM_PAT + "+\n")
 
 
 def parse_indent(indent: str | None) -> int:
