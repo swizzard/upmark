@@ -1,3 +1,8 @@
+## todo
+
+[ ] blockquotes
+[ ] unfenced `<pre>`
+
 ## differences
 
 * no starting unordered lists w/`1\.`
@@ -7,3 +12,4 @@
     * `ul`
     * `ol`
     * `p`
+

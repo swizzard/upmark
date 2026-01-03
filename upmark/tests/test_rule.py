@@ -3,10 +3,18 @@ from upmark.entity import (
     Content,
     ListItemEntity,
     OrderedListEntity,
+    PreEntity,
     Raw,
     UnorderedListEntity,
 )
-from upmark.rule import HashHeaderRule, EqH1Rule, EqH2Rule, OlRule, UlRule
+from upmark.rule import (
+    FencedPreRule,
+    HashHeaderRule,
+    EqH1Rule,
+    EqH2Rule,
+    OlRule,
+    UlRule,
+)
 
 
 class TestHashHeaderRule(TestCase):
@@ -155,3 +163,23 @@ class TestUlRule(TestCase):
         actual_match = UlRule.pattern.match(test_text)
         actual_entity = UlRule.parse_entity(test_text, actual_match)
         self.assertEqual(expected_ul, actual_entity)
+
+
+class TestFencedPreRule(TestCase):
+    def test_parse_entity_no_lang(self):
+        test_text = "\n```\nthis\ttext\nis _pre-formatted_```\n"
+        expected_entity = PreEntity(
+            test_text, 0, 37, None, "this\ttext\nis _pre-formatted_"
+        )
+        actual_match = FencedPreRule.pattern.match(test_text)
+        actual_entity = FencedPreRule.parse_entity(test_text, actual_match)
+        self.assertEqual(expected_entity, actual_entity)
+
+    def test_parse_entity_lang(self):
+        test_text = "\n```python\nthis\ttext\nis _pre-formatted_```\n"
+        expected_entity = PreEntity(
+            test_text, 0, 43, "python", "this\ttext\nis _pre-formatted_"
+        )
+        actual_match = FencedPreRule.pattern.match(test_text)
+        actual_entity = FencedPreRule.parse_entity(test_text, actual_match)
+        self.assertEqual(expected_entity, actual_entity)

@@ -5,6 +5,7 @@ from .entity import (
     HeaderEntity,
     ListItemEntity,
     OrderedListEntity,
+    PreEntity,
     Raw,
     UnorderedListEntity,
 )
@@ -124,11 +125,15 @@ class UlRule(ListLikeRule):
     pattern = re.compile("\n" + ITEM_PAT + "+\n")
 
 
+class FencedPreRule(Rule):
+    pattern = re.compile(r"\n(```|~~~)(?P<lang>\w+)?\n(?P<text>(.|\n)+)\1\n")
+
+    @classmethod
+    def parse_entity(cls, text: str, m: re.Match) -> Entity:
+        return PreEntity(text, m.start(), m.end(), m.group("lang"), m.group("text"))
+
+
 def parse_indent(indent: str | None) -> int:
     if indent is None:
         return 0
     return len(indent.replace("\t", "  ")) // 2
-
-
-# def raw_to_unannotated(raw: Raw) -> Content:
-#     return Unannotated(raw.text, raw.start, raw.end)

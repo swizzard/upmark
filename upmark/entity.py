@@ -226,3 +226,33 @@ class OrderedListEntity(ListEntity):
 
 class UnorderedListEntity(ListEntity):
     tag = "ul"
+
+
+class PreEntity(Entity):
+    content: str
+    lang: str | None
+
+    def __init__(self, text, start, end, lang, content):
+        super().__init__(text, start, end)
+        self.content = content
+        self.lang = lang
+
+    def to_string(self):
+        open_tag = f'<pre data-language="{self.lang}">' if self.lang else "<pre>"
+        return f"{open_tag}{self.content}</pre>"
+
+    def __repr__(self):
+        return f'''PreEntity(
+        start={self.start}
+        end={self.end}
+        text="{repr(self.text[self.start : max(self.start + 10, self.end)])}"
+        lang={self.lang}
+        content="{repr(self.content)}"'''
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, PreEntity)
+            and super().__eq__(other)
+            and self.lang == other.lang
+            and self.content == other.content
+        )
