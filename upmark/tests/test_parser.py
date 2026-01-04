@@ -70,6 +70,4 @@ class TestParser(TestCase):
         )
         parser = Parser([HashHeaderRule, EqH1Rule, EqH2Rule])
         actual_content = parser.parse(test_text)
-        for actual, expected in zip(actual_content.content, expected_content.content):
-            self.assertEqual(actual, expected)
-        # self.assertEqual(expected_content, actual_content)
+        self.assertEqual(expected_content, actual_content)

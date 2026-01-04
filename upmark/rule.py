@@ -1,11 +1,15 @@
 import re
 from .entity import (
+    BlockQuoteEntity,
+    BlockQuoteLineEntity,
     Content,
     Entity,
+    FencedPreEntity,
     HeaderEntity,
+    IndentedPreEntity,
+    IndentedPreLineEntity,
     ListItemEntity,
     OrderedListEntity,
-    PreEntity,
     Raw,
     UnorderedListEntity,
 )
@@ -113,14 +117,14 @@ class ListLikeRule(Rule):
 
 class OlRule(ListLikeRule):
     list_entity = OrderedListEntity
-    ITEM_PAT = r"(\n(?P<indent>(\t| {2,}))?\d+\.[\t ]+(?P<text>.+))"
+    ITEM_PAT = r"(\n(?P<indent>(\t| {4,}))?\d+\.[\t ]+(?P<text>.+))"
     item_pattern = re.compile(ITEM_PAT)
     pattern = re.compile("\n" + ITEM_PAT + "+\n")
 
 
 class UlRule(ListLikeRule):
     list_entity = UnorderedListEntity
-    ITEM_PAT = r"(\n(?P<indent>(\t| {2,}))?[-*+][\t ]+(?P<text>.+))"
+    ITEM_PAT = r"(\n(?P<indent>(\t| {4,}))?[-*+][\t ]+(?P<text>.+))"
     item_pattern = re.compile(ITEM_PAT)
     pattern = re.compile("\n" + ITEM_PAT + "+\n")
 
@@ -130,7 +134,41 @@ class FencedPreRule(Rule):
 
     @classmethod
     def parse_entity(cls, text: str, m: re.Match) -> Entity:
-        return PreEntity(text, m.start(), m.end(), m.group("lang"), m.group("text"))
+        return FencedPreEntity(
+            text, m.start(), m.end(), m.group("lang"), m.group("text")
+        )
+
+
+class IndentedPreRule(Rule):
+    LINE_PAT = r"(\n(\t| {4,})(?P<text>.+))"
+    line_pattern = re.compile(LINE_PAT)
+    pattern = re.compile("\n" + LINE_PAT + "+\n")
+
+    @classmethod
+    def parse_entity(cls, text: str, m: re.Match) -> Entity:
+        outer_el = IndentedPreEntity(text, m.start(), m.end())
+        matches = cls.line_pattern.finditer(text, m.start(), m.end())
+        for match in matches:
+            outer_el.push_line(
+                IndentedPreLineEntity(text, match.start("text"), match.end("text"))
+            )
+        return outer_el
+
+
+class BlockQuoteRule(Rule):
+    LINE_PAT = r"(\n>(?P<text>.+))"
+    line_pattern = re.compile(LINE_PAT)
+    pattern = re.compile("\n" + LINE_PAT + "+\n")
+
+    @classmethod
+    def parse_entity(cls, text: str, m: re.Match) -> Entity:
+        outer_el = BlockQuoteEntity(text, m.start(), m.end())
+        matches = cls.line_pattern.finditer(text, m.start(), m.end())
+        for match in matches:
+            outer_el.push_line(
+                BlockQuoteLineEntity(text, m.start("text"), m.group("end"))
+            )
+        return outer_el
 
 
 def parse_indent(indent: str | None) -> int:

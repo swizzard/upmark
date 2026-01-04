@@ -1,9 +1,9 @@
 from unittest import TestCase
 from upmark.entity import (
     Content,
+    FencedPreEntity,
     ListItemEntity,
     OrderedListEntity,
-    PreEntity,
     Raw,
     UnorderedListEntity,
 )
@@ -168,7 +168,7 @@ class TestUlRule(TestCase):
 class TestFencedPreRule(TestCase):
     def test_parse_entity_no_lang(self):
         test_text = "\n```\nthis\ttext\nis _pre-formatted_```\n"
-        expected_entity = PreEntity(
+        expected_entity = FencedPreEntity(
             test_text, 0, 37, None, "this\ttext\nis _pre-formatted_"
         )
         actual_match = FencedPreRule.pattern.match(test_text)
@@ -177,7 +177,7 @@ class TestFencedPreRule(TestCase):
 
     def test_parse_entity_lang(self):
         test_text = "\n```python\nthis\ttext\nis _pre-formatted_```\n"
-        expected_entity = PreEntity(
+        expected_entity = FencedPreEntity(
             test_text, 0, 43, "python", "this\ttext\nis _pre-formatted_"
         )
         actual_match = FencedPreRule.pattern.match(test_text)

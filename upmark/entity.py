@@ -228,7 +228,7 @@ class UnorderedListEntity(ListEntity):
     tag = "ul"
 
 
-class PreEntity(Entity):
+class FencedPreEntity(Entity):
     content: str
     lang: str | None
 
@@ -251,8 +251,67 @@ class PreEntity(Entity):
 
     def __eq__(self, other):
         return (
-            isinstance(other, PreEntity)
+            isinstance(other, FencedPreEntity)
             and super().__eq__(other)
             and self.lang == other.lang
             and self.content == other.content
+        )
+
+
+class IndentedPreLineEntity(Entity):
+    def __init__(self, text, start, end):
+        super().__init__(text, start, end)
+
+    def __repr__(self):
+        return f'''IndentedPreLineEntity(
+        start={self.start}
+        end={self.end}
+        text="{repr(self.text[self.start : max(self.start + 10, self.end)])}"'''
+
+
+class IndentedPreEntity(Entity):
+    content: [IndentedPreLineEntity]
+
+    def __init__(self, text, start, end, content=None):
+        super().__init__(text, start, end)
+        self.content = content or []
+
+    def push_line(self, line: IndentedPreLineEntity):
+        self.content.append(line)
+
+    def to_string(self):
+        return f"<pre>{'\n'.join(str(el) for el in self.content)}</pre>"
+
+    def __repr__(self):
+        return f'''IndentedPreEntity(
+        start={self.start}
+        end={self.end}
+        text="{repr(self.text[self.start : max(self.start + 10, self.end)])}"
+        content={repr(self.content)})'''
+
+
+class BlockQuoteLineEntity(Entity):
+    def __init__(self, text, start, end):
+        st = start
+        while text[st].isspace():
+            st += 1
+        super().__init__(self, text, st, end)
+
+    def to_string(self):
+        return f"<p>{self.content}</p>"
+
+
+class BlockQuoteEntity(Entity):
+    content: [BlockQuoteLineEntity]
+
+    def __init__(self, text, start, end, content=None):
+        super().__init__(text, start, end)
+        self.content = content or []
+
+    def push_line(self, line: BlockQuoteLineEntity):
+        self.content.append(line)
+
+    def to_string(self):
+        return (
+            f"\n<blockquote>{'\n'.join(str(el) for el in self.content)}</blockquote>\n"
         )
