@@ -156,7 +156,7 @@ class IndentedPreRule(Rule):
 
 
 class BlockQuoteRule(Rule):
-    LINE_PAT = r"(\n>(?P<text>.+))"
+    LINE_PAT = r"(\n>( (?P<text>.+))?)"
     line_pattern = re.compile(LINE_PAT)
     pattern = re.compile("\n" + LINE_PAT + "+\n")
 
@@ -164,10 +164,17 @@ class BlockQuoteRule(Rule):
     def parse_entity(cls, text: str, m: re.Match) -> Entity:
         outer_el = BlockQuoteEntity(text, m.start(), m.end())
         matches = cls.line_pattern.finditer(text, m.start(), m.end())
+        # import pdb
+
+        # pdb.set_trace()
         for match in matches:
-            outer_el.push_line(
-                BlockQuoteLineEntity(text, m.start("text"), m.group("end"))
-            )
+            if match.group("text"):
+                start = match.start("text")
+                end = match.end("text")
+            else:
+                start = match.end()
+                end = match.end()
+            outer_el.push_line(BlockQuoteLineEntity(text, start, end))
         return outer_el
 
 

@@ -1,17 +1,23 @@
 from unittest import TestCase
 from upmark.entity import (
+    BlockQuoteEntity,
+    BlockQuoteLineEntity,
     Content,
     FencedPreEntity,
+    IndentedPreEntity,
+    IndentedPreLineEntity,
     ListItemEntity,
     OrderedListEntity,
     Raw,
     UnorderedListEntity,
 )
 from upmark.rule import (
+    BlockQuoteRule,
     FencedPreRule,
-    HashHeaderRule,
     EqH1Rule,
     EqH2Rule,
+    HashHeaderRule,
+    IndentedPreRule,
     OlRule,
     UlRule,
 )
@@ -82,8 +88,6 @@ class TestEqHRule(TestCase):
 
 
 class TestOlRule(TestCase):
-    maxDiff = None
-
     def test_parse_entity_no_indent(self):
         test_text = "\n\n1. one\n2. two\n"
         expected_li_1 = ListItemEntity(test_text, 1, 8, Content([Raw(test_text, 5, 8)]))
@@ -183,3 +187,32 @@ class TestFencedPreRule(TestCase):
         actual_match = FencedPreRule.pattern.match(test_text)
         actual_entity = FencedPreRule.parse_entity(test_text, actual_match)
         self.assertEqual(expected_entity, actual_entity)
+
+
+class TestIndentedPreRule(TestCase):
+    def test_parse_entity(self):
+        test_text = "\n\n    _this text_ is\n    *pre-formatted*\n\n"
+        expected_line_1 = IndentedPreLineEntity(test_text, 6, 19)
+        expected_line_2 = IndentedPreLineEntity(test_text, 25, 39)
+        expected_entity = IndentedPreEntity(
+            test_text, 0, 41, [expected_line_1, expected_line_2]
+        )
+        actual_match = IndentedPreRule.pattern.match(test_text)
+        actual_entity = IndentedPreRule.parse_entity(test_text, actual_match)
+        self.assertEqual(expected_entity, actual_entity)
+
+
+class TestBlockQuoteRule(TestCase):
+    maxDiff = None
+
+    def test_parse_entity(self):
+        test_text = "\n\n> this is blockquoted\n>\n> so is this\n"
+        expected_line_1 = BlockQuoteLineEntity(test_text, 4, 23)
+        expected_line_2 = BlockQuoteLineEntity(test_text, 25, 25)
+        expected_line_3 = BlockQuoteLineEntity(test_text, 28, 38)
+        expected_entity = BlockQuoteEntity(
+            test_text, 0, 41, [expected_line_1, expected_line_2, expected_line_3]
+        )
+        actual_match = BlockQuoteRule.pattern.match(test_text)
+        actual_entity = BlockQuoteRule.parse_entity(test_text, actual_match)
+        self.assertEqual(expected_entity.content, actual_entity.content)

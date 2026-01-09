@@ -295,10 +295,16 @@ class BlockQuoteLineEntity(Entity):
         st = start
         while text[st].isspace():
             st += 1
-        super().__init__(self, text, st, end)
+        super().__init__(text, max(st, end), end)
 
     def to_string(self):
         return f"<p>{self.content}</p>"
+
+    def __repr__(self):
+        return f'''BlockQuoteLineEntity(
+        start={self.start}
+        end={self.end}
+        text="{repr(self.text[self.start : max(self.start + 10, self.end)])}")'''
 
 
 class BlockQuoteEntity(Entity):
@@ -315,3 +321,10 @@ class BlockQuoteEntity(Entity):
         return (
             f"\n<blockquote>{'\n'.join(str(el) for el in self.content)}</blockquote>\n"
         )
+
+    def __repr__(self):
+        return f'''BlockQuoteEntity(
+        start={self.start}
+        end={self.end}
+        text="{repr(self.text[self.start : max(self.start + 10, self.end)])}"
+        content={repr(self.content)})'''

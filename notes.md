@@ -12,4 +12,10 @@
     * `ul`
     * `ol`
     * `p`
+* blockquotes/indented `<pre>` blocks must be preceded by a blank line
+
+
+## unsupported
+
+* nested blockquotes
 
