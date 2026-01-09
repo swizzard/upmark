@@ -1,18 +1,6 @@
 import re
-from .entity import (
-    BlockQuoteEntity,
-    BlockQuoteLineEntity,
-    Content,
-    Entity,
-    FencedPreEntity,
-    HeaderEntity,
-    IndentedPreEntity,
-    IndentedPreLineEntity,
-    ListItemEntity,
-    OrderedListEntity,
-    Raw,
-    UnorderedListEntity,
-)
+from . import entity
+from .entity import Entity
 
 
 class Rule:
@@ -27,11 +15,13 @@ class Rule:
         content = []
         raw_ix = start
         for match in cls.pattern.finditer(text, start, end):
-            if (raw_before := Raw.from_slice(text, raw_ix, match.start())) is not None:
+            if (
+                raw_before := entity.Raw.from_slice(text, raw_ix, match.start())
+            ) is not None:
                 content.append(raw_before)
             content.append(cls.parse_entity(text, match))
             raw_ix = max(raw_ix, match.end())
-        if (raw_after := Raw.from_slice(text, raw_ix, end)) is not None:
+        if (raw_after := entity.Raw.from_slice(text, raw_ix, end)) is not None:
             content.append(raw_after)
         return content
 
@@ -41,11 +31,11 @@ class HashHeaderRule(Rule):
 
     @classmethod
     def parse_entity(cls, text: str, m: re.Match) -> Entity:
-        return HeaderEntity(
+        return entity.HeaderEntity(
             text,
             m.start(),
             m.end(),
-            Content.raw_remainder(text, m.start("text"), m.end()),
+            entity.Content.raw_remainder(text, m.start("text"), m.end()),
             level=len(m.group("level")),
             is_bof=(not m.group("pre")),
         )
@@ -56,11 +46,11 @@ class EqH1Rule(Rule):
 
     @classmethod
     def parse_entity(cls, text: str, m: re.Match) -> Entity:
-        return HeaderEntity(
+        return entity.HeaderEntity(
             text,
             m.start(),
             m.end(),
-            Content.raw_remainder(text, m.start("text"), m.end("text")),
+            entity.Content.raw_remainder(text, m.start("text"), m.end("text")),
             level=1,
             is_bof=(not m.group("pre")),
         )
@@ -71,11 +61,11 @@ class EqH2Rule(Rule):
 
     @classmethod
     def parse_entity(cls, text: str, m: re.Match) -> Entity:
-        return HeaderEntity(
+        return entity.HeaderEntity(
             text,
             m.start(),
             m.end(),
-            Content.raw_remainder(text, m.start("text"), m.end("text")),
+            entity.Content.raw_remainder(text, m.start("text"), m.end("text")),
             level=2,
             is_bof=(not m.group("pre")),
         )
@@ -94,11 +84,13 @@ class ListLikeRule(Rule):
         lists = [list_el]
         for match in matches:
             ind = parse_indent(match.group("indent"))
-            li = ListItemEntity(
+            li = entity.ListItemEntity(
                 text,
                 match.start(),
                 match.end(),
-                Content.raw_remainder(text, match.start("text"), match.end("text")),
+                entity.Content.raw_remainder(
+                    text, match.start("text"), match.end("text")
+                ),
             )
             if ind > curr_indent:
                 inner = cls.list_entity(text, match.start(), m.end(), [li])
@@ -116,14 +108,14 @@ class ListLikeRule(Rule):
 
 
 class OlRule(ListLikeRule):
-    list_entity = OrderedListEntity
+    list_entity = entity.OrderedListEntity
     ITEM_PAT = r"(\n(?P<indent>(\t| {4,}))?\d+\.[\t ]+(?P<text>.+))"
     item_pattern = re.compile(ITEM_PAT)
     pattern = re.compile("\n" + ITEM_PAT + "+\n")
 
 
 class UlRule(ListLikeRule):
-    list_entity = UnorderedListEntity
+    list_entity = entity.UnorderedListEntity
     ITEM_PAT = r"(\n(?P<indent>(\t| {4,}))?[-*+][\t ]+(?P<text>.+))"
     item_pattern = re.compile(ITEM_PAT)
     pattern = re.compile("\n" + ITEM_PAT + "+\n")
@@ -134,7 +126,7 @@ class FencedPreRule(Rule):
 
     @classmethod
     def parse_entity(cls, text: str, m: re.Match) -> Entity:
-        return FencedPreEntity(
+        return entity.FencedPreEntity(
             text, m.start(), m.end(), m.group("lang"), m.group("text")
         )
 
@@ -146,11 +138,13 @@ class IndentedPreRule(Rule):
 
     @classmethod
     def parse_entity(cls, text: str, m: re.Match) -> Entity:
-        outer_el = IndentedPreEntity(text, m.start(), m.end())
+        outer_el = entity.IndentedPreEntity(text, m.start(), m.end())
         matches = cls.line_pattern.finditer(text, m.start(), m.end())
         for match in matches:
             outer_el.push_line(
-                IndentedPreLineEntity(text, match.start("text"), match.end("text"))
+                entity.IndentedPreLineEntity(
+                    text, match.start("text"), match.end("text")
+                )
             )
         return outer_el
 
@@ -162,11 +156,8 @@ class BlockQuoteRule(Rule):
 
     @classmethod
     def parse_entity(cls, text: str, m: re.Match) -> Entity:
-        outer_el = BlockQuoteEntity(text, m.start(), m.end())
+        outer_el = entity.BlockQuoteEntity(text, m.start(), m.end())
         matches = cls.line_pattern.finditer(text, m.start(), m.end())
-        # import pdb
-
-        # pdb.set_trace()
         for match in matches:
             if match.group("text"):
                 start = match.start("text")
@@ -174,8 +165,15 @@ class BlockQuoteRule(Rule):
             else:
                 start = match.end()
                 end = match.end()
-            outer_el.push_line(BlockQuoteLineEntity(text, start, end))
+            outer_el.push_line(entity.BlockQuoteLineEntity(text, start, end))
         return outer_el
+
+
+# class EmRule(Rule):
+#     pattern = re.compile(r'_(?P<text>.+)_')
+
+#     @classmethod
+#     def parse_entity(cls, text: str, m: re.Match) -> Entity:
 
 
 def parse_indent(indent: str | None) -> int:
