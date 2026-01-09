@@ -8,7 +8,6 @@ class Parser:
 
     def __init__(self, blocks: [Rule], finalizer=None):
         self.blocks = blocks
-        # self.finalizer = finalizer if finalizer is not None else raw_to_unannotated
 
     def parse(self, text: str) -> Content:
         content = Content.raw_from_str(text)

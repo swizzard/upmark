@@ -1,6 +1,6 @@
 import re
 from . import entity
-from .entity import Entity
+from .entity import Content, Entity
 
 
 class Rule:
@@ -35,7 +35,7 @@ class HashHeaderRule(Rule):
             text,
             m.start(),
             m.end(),
-            entity.Content.raw_remainder(text, m.start("text"), m.end()),
+            Content.raw_remainder(text, m.start("text"), m.end()),
             level=len(m.group("level")),
             is_bof=(not m.group("pre")),
         )
@@ -50,7 +50,7 @@ class EqH1Rule(Rule):
             text,
             m.start(),
             m.end(),
-            entity.Content.raw_remainder(text, m.start("text"), m.end("text")),
+            Content.raw_remainder(text, m.start("text"), m.end("text")),
             level=1,
             is_bof=(not m.group("pre")),
         )
@@ -65,7 +65,7 @@ class EqH2Rule(Rule):
             text,
             m.start(),
             m.end(),
-            entity.Content.raw_remainder(text, m.start("text"), m.end("text")),
+            Content.raw_remainder(text, m.start("text"), m.end("text")),
             level=2,
             is_bof=(not m.group("pre")),
         )
@@ -75,6 +75,12 @@ class ListLikeRule(Rule):
     list_entity: Entity
     item_pattern: re.Pattern
     pattern: re.Pattern
+
+    @classmethod
+    def __init_subclass__(cls, /, list_entity, item_pat, **kwargs):
+        cls.list_entity = list_entity
+        cls.item_pattern = re.compile(item_pat)
+        cls.pattern = re.compile("\n" + item_pat + "+\n")
 
     @classmethod
     def parse_entity(cls, text: str, m: re.Match) -> Entity:
@@ -88,9 +94,7 @@ class ListLikeRule(Rule):
                 text,
                 match.start(),
                 match.end(),
-                entity.Content.raw_remainder(
-                    text, match.start("text"), match.end("text")
-                ),
+                Content.raw_remainder(text, match.start("text"), match.end("text")),
             )
             if ind > curr_indent:
                 inner = cls.list_entity(text, match.start(), m.end(), [li])
@@ -107,18 +111,20 @@ class ListLikeRule(Rule):
         return list_el
 
 
-class OlRule(ListLikeRule):
-    list_entity = entity.OrderedListEntity
-    ITEM_PAT = r"(\n(?P<indent>(\t| {4,}))?\d+\.[\t ]+(?P<text>.+))"
-    item_pattern = re.compile(ITEM_PAT)
-    pattern = re.compile("\n" + ITEM_PAT + "+\n")
+class OlRule(
+    ListLikeRule,
+    list_entity=entity.OrderedListEntity,
+    item_pat=r"(\n(?P<indent>(\t| {4,}))?\d+\.[\t ]+(?P<text>.+))",
+):
+    pass
 
 
-class UlRule(ListLikeRule):
-    list_entity = entity.UnorderedListEntity
-    ITEM_PAT = r"(\n(?P<indent>(\t| {4,}))?[-*+][\t ]+(?P<text>.+))"
-    item_pattern = re.compile(ITEM_PAT)
-    pattern = re.compile("\n" + ITEM_PAT + "+\n")
+class UlRule(
+    ListLikeRule,
+    list_entity=entity.UnorderedListEntity,
+    item_pat=r"(\n(?P<indent>(\t| {4,}))?[-*+][\t ]+(?P<text>.+))",
+):
+    pass
 
 
 class FencedPreRule(Rule):
@@ -169,11 +175,36 @@ class BlockQuoteRule(Rule):
         return outer_el
 
 
-# class EmRule(Rule):
-#     pattern = re.compile(r'_(?P<text>.+)_')
+class SimpleWrappingRule(Rule):
+    delimiter: str
+    entity: Entity
 
-#     @classmethod
-#     def parse_entity(cls, text: str, m: re.Match) -> Entity:
+    @classmethod
+    def __init_subclass__(cls, /, delimiter, entity, **kwargs):
+        pat_str = f"({delimiter})(?P<text>.+)(\\1)"
+        cls.pattern = re.compile(pat_str)
+        cls.entity = entity
+
+    @classmethod
+    def parse_entity(cls, text: str, m: re.Match) -> Entity:
+        return cls.entity(
+            text,
+            m.start(),
+            m.end(),
+            Content.raw_remainder(text, m.start("text"), m.end("text")),
+        )
+
+
+class EmRule(SimpleWrappingRule, delimiter="[*_]", entity=entity.EmEntity):
+    pass
+
+
+class BoldRule(SimpleWrappingRule, delimiter="[*_]{2}", entity=entity.BoldEntity):
+    pass
+
+
+class BoldEmRule(SimpleWrappingRule, delimiter="[*_]{3}", entity=entity.BoldEmEntity):
+    pass
 
 
 def parse_indent(indent: str | None) -> int:

@@ -151,6 +151,35 @@ class EmEntity(WrappingEntity):
     tag = "em"
 
 
+class BoldEntity(WrappingEntity):
+    tag = "b"
+
+
+class BoldEmEntity(Entity):
+    content: Content
+
+    def __init__(self, text, start, end, content):
+        super().__init__(text, start, end)
+        self.content = content
+
+    def to_string(self):
+        return f"<em><b>{self.content.to_string()}</b></em>"
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, BoldEmEntity)
+            and super().__eq__(other)
+            and self.content == other.content
+        )
+
+    def __repr__(self):
+        return f'''BoldEmEntity(
+    start={self.start},
+    end={self.end},
+    text="{repr(self.text[self.start : self.start + 10])}...",
+    content={repr(self.content)})'''
+
+
 class ParagraphEntity(WrappingBlockEntity):
     tag = "p"
 
